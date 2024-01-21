@@ -10,10 +10,10 @@ from nltk.stem import PorterStemmer
 from nltk.tokenize import word_tokenize
 import string
 import re
-from keras.preprocessing.text import Tokenizer
-from keras.preprocessing.sequence import pad_sequences
-from keras.models import Sequential
-from keras.layers import Dense, Embedding, LSTM, SpatialDropout1D
+from sklearn import svm
+
+# # 创建词形还原对象
+# lemmatizer = WordNetLemmatizer()
 
 # 创建词干提取对象
 stemmer = PorterStemmer()
@@ -42,6 +42,8 @@ def preprocess_text(text):
     text = text.translate(str.maketrans('', '', string.punctuation))
     # 分词
     words = word_tokenize(text)
+    # # 词形还原并去除停用词
+    # words = [lemmatizer.lemmatize(word) for word in words if word not in ENGLISH_STOP_WORDS]
     # 词干提取并去除停用词
     words = [stemmer.stem(word) for word in words if word not in ENGLISH_STOP_WORDS]
     # 去除多余的空格
@@ -59,34 +61,41 @@ df_train['text'] = df_train['text'].apply(preprocess_text)
 
 # 将'Assistance'，'Relationships'，'Homeless'，'Almosthomeless'这几个标签都替换为'noproblem'
 df_train['subreddit'] = df_train['subreddit'].replace(['assistance', 'relationships', 'homeless', 'almosthomeless'], 'no problem')
-df_train['subreddit'] = df_train['subreddit'].replace(['anxiety', 'stress', 'ptsd'], 'have problem')
+# df_train['subreddit'] = df_train['subreddit'].replace(['anxiety', 'stress', 'ptsd'], 'have problem')
 df_train['subreddit'] = df_train['subreddit'].replace(['domesticviolence', 'survivorsofabuse'], 'may problem')
 
-# 使用Tokenizer将训练数据集的文本数据转换为特征向量
-max_fatures = 3000
-tokenizer = Tokenizer(num_words=max_fatures, split=' ')
-tokenizer.fit_on_texts(df_train['text'].values)
-X_train = tokenizer.texts_to_sequences(df_train['text'].values)
-X_train = pad_sequences(X_train)
+# # 删除'may problem'类的所有样本
+# df_train = df_train[df_train['subreddit'] != 'may problem']
 
-# 创建LSTM模型
-embed_dim = 128
-lstm_out = 196
+# 使用TfidfVectorizer将训练数据集的文本数据转换为特征向量
+# 使用n-grams
+vectorizer = TfidfVectorizer(ngram_range=(1, 2))
+X_train_vectors = vectorizer.fit_transform(df_train['text'])
 
-model = Sequential()
-model.add(Embedding(max_fatures, embed_dim,input_length = X_train.shape[1]))
-model.add(SpatialDropout1D(0.4))
-model.add(LSTM(lstm_out, dropout=0.2, recurrent_dropout=0.2))
-model.add(Dense(4,activation='softmax'))
-model.compile(loss = 'categorical_crossentropy', optimizer='adam',metrics = ['accuracy'])
+# 创建SVM模型
+model = svm.SVC()
 
-# 训练模型
-batch_size = 32
-model.fit(X_train, pd.get_dummies(df_train['subreddit']).values, epochs = 7, batch_size=batch_size, verbose = 2)
+# 定义参数网格
+param_grid = {
+    'C': [1, 10, 15, 20, 25, 30],
+    'gamma': [0.01, 0.1, 1, 10],
+    'kernel': ['linear', 'rbf', ] #'poly', 'sigmoid'
+}
 
-#保存模型
-model.save('my_model.h5')
+# 创建网格搜索对象
+grid_search = GridSearchCV(model, param_grid, cv=5)
 
+# 训练模型并搜索最优参数
+grid_search.fit(X_train_vectors, df_train['subreddit'])
+
+# 输出最优参数
+print(f'最优参数: {grid_search.best_params_}')
+
+# 保存模型
+dump(grid_search.best_estimator_, 'dereddit_model_SVM.joblib')
+
+# 保存词汇表
+dump(vectorizer, 'dereddit_vocabulary_SVM.joblib')
 
 # 读取测试数据集
 df_test = pd.read_csv('dreaddit-test.csv')
@@ -96,19 +105,22 @@ df_test['text'] = df_test['text'].fillna('')
 
 # 将测试数据集中的'Assistance'，'Relationships'，'Homeless'，'Almosthomeless'这几个标签都替换为'noproblem'
 df_test['subreddit'] = df_test['subreddit'].replace(['assistance', 'relationships', 'homeless', 'almosthomeless'], 'no problem')
-df_test['subreddit'] = df_test['subreddit'].replace(['anxiety', 'stress', 'ptsd'], 'have problem')
+# df_test['subreddit'] = df_test['subreddit'].replace(['anxiety', 'stress', 'ptsd'], 'have problem')
 df_test['subreddit'] = df_test['subreddit'].replace(['domesticviolence', 'survivorsofabuse'], 'may problem')
+
+# # 删除'may problem'类的所有样本
+# df_test = df_test[df_test['subreddit'] != 'may problem']
 
 # 对文本数据进行预处理
 df_test['text'] = df_test['text'].apply(preprocess_text)
 
-# 使用之前训练好的Tokenizer将测试数据集的文本数据转换为特征向量
-X_test = tokenizer.texts_to_sequences(df_test['text'].values)
-X_test = pad_sequences(X_test, maxlen=X_train.shape[1])
+# 使用之前训练好的TfidfVectorizer将测试数据集的文本数据转换为特征向量
+X_test_vectors = vectorizer.transform(df_test['text'])
 
 # 使用之前训练好的模型进行预测
-predictions_test = model.predict(X_test)
+predictions_test = grid_search.best_estimator_.predict(X_test_vectors)
 
 # 如果测试数据集中包含真实的标签，可以计算准确率
-accuracy_test = accuracy_score(pd.get_dummies(df_test['subreddit']).values.argmax(axis=1), predictions_test.argmax(axis=1))
+# 假设测试数据集中包含名为'subreddit'的列，其中包含真实的标签
+accuracy_test = accuracy_score(df_test['subreddit'], predictions_test)
 print(f'测试数据集的模型准确率: {accuracy_test:.2f}')
