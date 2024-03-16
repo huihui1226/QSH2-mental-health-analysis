@@ -51,13 +51,6 @@ df_train['subreddit'] = df_train['subreddit'].replace(['domesticviolence', 'surv
 # 使用LabelEncoder将标签转换为数字
 le = LabelEncoder()
 df_train['subreddit'] = le.fit_transform(df_train['subreddit'])
-
-# 创建tokenizer
-tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
-
-# 创建模型
-model = TFBertForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=6) # 根据你的类别数量修改num_labels
-
 # 对文本数据进行预处理
 def convert_data_to_examples(df, DATA_COLUMN, LABEL_COLUMN):
   InputExamples = df.apply(lambda x: InputExample(guid=None,
@@ -112,6 +105,15 @@ def convert_examples_to_tf_dataset(examples, tokenizer, max_length=128):
             tf.TensorShape([]),
         ),
     )
+
+
+# 创建tokenizer
+tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
+
+# 创建模型
+model = TFBertForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=6) # 根据你的类别数量修改num_labels
+
+
 
 # 对数据进行预处理
 DATA_COLUMN = 'text'

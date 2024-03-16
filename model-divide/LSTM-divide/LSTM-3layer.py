@@ -1,24 +1,14 @@
-import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
-from sklearn.model_selection import GridSearchCV
 from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
 from nltk.stem import WordNetLemmatizer
 from nltk.stem import PorterStemmer
 from nltk.tokenize import word_tokenize
 import string
 import re
-from keras.preprocessing.text import Tokenizer
-from keras.preprocessing.sequence import pad_sequences
-from keras.models import Sequential
-from keras.layers import Dense, Embedding, LSTM, SpatialDropout1D
-from keras.layers import Dropout
 from keras.callbacks import EarlyStopping
 from scikeras.wrappers import KerasClassifier
-from keras.layers import Bidirectional
-from keras.optimizers import RMSprop
-
 from keras.callbacks import ModelCheckpoint
 import os
 from sklearn.model_selection import GridSearchCV
@@ -28,6 +18,8 @@ from keras.optimizers import RMSprop
 from keras.preprocessing.text import Tokenizer
 from keras.preprocessing.sequence import pad_sequences
 import pandas as pd
+
+from keras.layers import Conv1D, MaxPooling1D, BatchNormalization
 
 # 创建词干提取对象
 stemmer = PorterStemmer()
@@ -76,6 +68,8 @@ df_train['subreddit'] = df_train['subreddit'].replace(['assistance', 'relationsh
 # df_train['subreddit'] = df_train['subreddit'].replace(['anxiety', 'stress', 'ptsd'], 'have problem')
 df_train['subreddit'] = df_train['subreddit'].replace(['domesticviolence', 'survivorsofabuse'], 'may problem')
 
+df_train = df_train[df_train['subreddit'] != 'food_pantry']
+
 # # 删除'may problem'类的所有样本
 # df_train = df_train[df_train['subreddit'] != 'may problem']
 
@@ -92,15 +86,30 @@ lstm_out = 196
 
 batch_size = 32 # 定义batch_size
 
+# model = Sequential()
+# model.add(Embedding(max_fatures, embed_dim,input_length = X_train.shape[1])) #use word2Vec
+# model.add(Conv1D(128, 5, activation='relu')) # 添加CNN层
+# model.add(MaxPooling1D(pool_size=4)) # 添加池化层
+# model.add(Bidirectional(LSTM(lstm_out,return_sequences=True))) # 添加return_sequences=True以便在下一层使用序列输出
+# model.add(BatchNormalization()) # 添加BatchNormalization层
+# model.add(Bidirectional(LSTM(lstm_out,return_sequences=True))) # 添加return_sequences=True以便在下一层使用序列输出
+# model.add(Dropout(0.5)) # 添加Dropout层
+# model.add(LSTM(lstm_out, dropout=0.2, recurrent_dropout=0.2)) # 添加第二个LSTM层
+# model.add(Dropout(0.3)) # 添加Dropout层
+# model.add(Dense(50, activation='relu')) # 添加Dense层
+# model.add(BatchNormalization()) # 添加BatchNormalization层
+# model.add(Dense(6,activation='softmax'))
+# model.compile(loss = 'categorical_crossentropy', optimizer=RMSprop(learning_rate=0.001), metrics = ['accuracy']) #   'adam'
+
 model = Sequential()
 model.add(Embedding(max_fatures, embed_dim,input_length = X_train.shape[1])) #use word2Vec
-model.add(SpatialDropout1D(0.8)) # 增加Dropout比例
+model.add(Dropout(0.8)) # 增加Dropout比例  less than 0.5
 # model.add(LSTM(lstm_out, dropout=0.2, recurrent_dropout=0.2, return_sequences=True)) # 添加return_sequences=True以便在下一层使用序列输出
 # model.add(LSTM(lstm_out, dropout=0.2, recurrent_dropout=0.2, return_sequences=True)) # 添加return_sequences=True以便在下一层使用序列输出
-model.add(Bidirectional(LSTM(lstm_out, dropout=0.2, recurrent_dropout=0.2, return_sequences=True))) # 添加return_sequences=True以便在下一层使用序列输出
-model.add(Dropout(0.7)) # 添加Dropout层
-model.add(Bidirectional(LSTM(lstm_out, dropout=0.2, recurrent_dropout=0.2, return_sequences=True))) # 添加return_sequences=True以便在下一层使用序列输出
-model.add(Dropout(0.6)) # 添加Dropout层
+model.add(Bidirectional(LSTM(lstm_out, return_sequences=True))) # 添加return_sequences=True以便在下一层使用序列输出
+# model.add(Dropout(0.7)) # 添加Dropout层
+model.add(Bidirectional(LSTM(lstm_out, return_sequences=True))) # 添加return_sequences=True以便在下一层使用序列输出  don't rely too  much on chatgpt    0.2 max： 0.5
+# model.add(Dropout(0.6)) # 添加Dropout层
 model.add(LSTM(lstm_out, dropout=0.2, recurrent_dropout=0.2)) # 添加第二个LSTM层
 model.add(Dropout(0.6)) # 添加Dropout层
 model.add(Dense(50, activation='relu')) # 添加Dense层
@@ -115,48 +124,6 @@ early_stop = EarlyStopping(monitor='val_loss', patience=5)
 model.fit(X_train, pd.get_dummies(df_train['subreddit']).values, epochs = 14, batch_size=batch_size, verbose = 2, callbacks=[early_stop,checkpoint], validation_split=0.2) # 添加validation_split参数
 
 
-# # 定义一个函数来创建模型，接受三个dropout参数
-# def create_model(dropout_rate1=0.0, dropout_rate2=0.0, dropout_rate3=0.0):
-#     embed_dim = 128
-#     lstm_out = 196
-#     model = Sequential()
-#     model.add(Embedding(max_fatures, embed_dim,input_length = X_train.shape[1])) #use word2Vec
-#     model.add(SpatialDropout1D(dropout_rate1))
-#     model.add(Bidirectional(LSTM(lstm_out, dropout=dropout_rate1, recurrent_dropout=dropout_rate1, return_sequences=True)))
-#     model.add(Dropout(dropout_rate2))
-#     model.add(Bidirectional(LSTM(lstm_out, dropout=dropout_rate2, recurrent_dropout=dropout_rate2, return_sequences=True)))
-#     model.add(Dropout(dropout_rate3))
-#     model.add(LSTM(lstm_out, dropout=dropout_rate3, recurrent_dropout=dropout_rate3))
-#     model.add(Dropout(dropout_rate3))
-#     model.add(Dense(70, activation='relu'))
-#     model.add(Dense(6,activation='softmax'))
-#     model.compile(loss = 'categorical_crossentropy', optimizer=RMSprop(learning_rate=0.001),metrics = ['accuracy'])
-#     return model
-#
-# # 包装模型
-# model = KerasClassifier(build_fn=create_model, epochs=14, batch_size=32, verbose=2)
-#
-# # 定义网格搜索参数
-# param_grid = {
-#     'model__dropout_rate1': [0.6, 0.65, 0.7, 0.75, 0.8],
-#     'model__dropout_rate2': [0.4, 0.5, 0.6],
-#     'model__dropout_rate3': [0.4, 0.5, 0.6]
-# }
-#
-# # 创建GridSearchCV对象
-# grid = GridSearchCV(estimator=model, param_grid=param_grid, n_jobs=-1, cv=3)
-# grid_result = grid.fit(X_train, pd.get_dummies(df_train['subreddit']).values)
-#
-# # 输出结果
-# print("最优：%f 使用%s" % (grid_result.best_score_, grid_result.best_params_))
-
-#train my own word2vec and use it foe embedding
-#add more layers,  add different layers to see the difference my_lstm
-#try different methods
-
-#show by charts
-
-
 # 读取测试数据集
 df_test = pd.read_csv('../dreaddit-test.csv')
 
@@ -167,6 +134,7 @@ df_test['text'] = df_test['text'].fillna('')
 df_test['subreddit'] = df_test['subreddit'].replace(['assistance', 'relationships', 'homeless', 'almosthomeless'], 'no problem')
 # df_test['subreddit'] = df_test['subreddit'].replace(['anxiety', 'stress', 'ptsd'], 'have problem')
 df_test['subreddit'] = df_test['subreddit'].replace(['domesticviolence', 'survivorsofabuse'], 'may problem')
+df_test = df_test[df_test['subreddit'] != 'food_pantry']
 
 # # 删除'may problem'类的所有样本
 # df_test = df_test[df_test['subreddit'] != 'may problem']
