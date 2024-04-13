@@ -68,8 +68,8 @@ def load_model_and_vocab(model_name, maxlen=None, index_to_label=None):
 # 创建一个字典，键是模型的名称，值是对应的模型和词汇表
 models = {
     'my_model5': load_model_and_vocab('my_model5', 114, {0: 'no problem', 1: 'may problem', 2: 'anxiety', 3: 'stress', 4: 'ptsd'}),
-    'my_model2': load_model_and_vocab('my_model2', 111, {0: 'no problem', 1: 'have problem'}),
-    'my_model4': load_model_and_vocab('my_model4') #, 111, {0: 'no problem', 1:  'anxiety', 2: 'stress', 3: 'ptsd', 4: 'food_pantry'}
+    'my_model2': load_model_and_vocab('my_model2', 111, {0: 'no problem', 1: 'have problem'}), #LSTM MODEL CNN
+    'my_model4': load_model_and_vocab('my_model4') #, 111, {0: 'no problem', 1:  'anxiety', 2: 'stress', 3: 'ptsd', 4: 'food_pantry'}  #SVM
 }
 
 # 创建一个变量来保存当前选择的模型和词汇表
@@ -142,7 +142,7 @@ def predict_file():
 
 # 创建主窗口
 root = tk.Tk()
-root.title("文本情感预测")
+root.title("Text sentiment prediction")
 
 # 在GUI中添加一个下拉菜单来选择模型
 model_var = tk.StringVar(root)

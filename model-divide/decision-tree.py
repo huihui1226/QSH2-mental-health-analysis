@@ -55,7 +55,11 @@ df_train['text'] = df_train['text'].apply(preprocess_text)
 
 # 将'Assistance'，'Relationships'，'Homeless'，'Almosthomeless'这几个标签都替换为'noproblem'
 df_train['subreddit'] = df_train['subreddit'].replace(['assistance', 'relationships', 'homeless', 'almosthomeless'], 'no problem')
+df_train['subreddit'] = df_train['subreddit'].replace(['anxiety', 'stress', 'ptsd'], 'have problem')
 df_train['subreddit'] = df_train['subreddit'].replace(['domesticviolence', 'survivorsofabuse'], 'may problem')
+
+df_train = df_train[df_train['subreddit'] != 'food_pantry']
+#df_train = df_train[df_train['subreddit'] != 'may problem']
 
 # 使用TfidfVectorizer将训练数据集的文本数据转换为特征向量
 vectorizer = TfidfVectorizer(max_features=3000)
@@ -73,7 +77,7 @@ model = DecisionTreeClassifier()
 # 定义要搜索的参数网格
 param_grid = {
     'max_depth': [220, 230, 240, 250],
-    'min_samples_split': [2, 5, 10],
+    'min_samples_split': [1,2, 5, 10],
     'min_samples_leaf': [1, 2, 4],
     'max_features': ['sqrt', 'log2', None]
 }
@@ -105,7 +109,11 @@ df_test['text'] = df_test['text'].fillna('')
 
 # 将测试数据集中的'Assistance'，'Relationships'，'Homeless'，'Almosthomeless'这几个标签都替换为'noproblem'
 df_test['subreddit'] = df_test['subreddit'].replace(['assistance', 'relationships', 'homeless', 'almosthomeless'], 'no problem')
+df_test['subreddit'] = df_test['subreddit'].replace(['anxiety', 'stress', 'ptsd'], 'have problem')
 df_test['subreddit'] = df_test['subreddit'].replace(['domesticviolence', 'survivorsofabuse'], 'may problem')
+
+df_test = df_test[df_test['subreddit'] != 'food_pantry']
+#df_test = df_test[df_test['subreddit'] != 'may problem']
 
 # 对文本数据进行预处理
 df_test['text'] = df_test['text'].apply(preprocess_text)

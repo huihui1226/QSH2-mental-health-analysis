@@ -63,7 +63,7 @@ df_train['text'] = df_train['text'].apply(preprocess_text)
 df_train['subreddit'] = df_train['subreddit'].replace(['assistance', 'relationships', 'homeless', 'almosthomeless'], 'no problem')
 # df_train['subreddit'] = df_train['subreddit'].replace(['anxiety', 'stress', 'ptsd'], 'have problem')
 df_train['subreddit'] = df_train['subreddit'].replace(['domesticviolence', 'survivorsofabuse'], 'may problem')
-
+df_train = df_train[df_train['subreddit'] != 'food_pantry']
 # # 删除'may problem'类的所有样本
 # df_train = df_train[df_train['subreddit'] != 'may problem']
 
@@ -77,9 +77,9 @@ model = svm.SVC()
 
 # 定义参数网格
 param_grid = {
-    'C': [1, 10, 15, 20, 25, 30],
-    'gamma': [0.01, 0.1, 1, 10],
-    'kernel': ['linear', 'rbf', ] #'poly', 'sigmoid'
+    'C': [30, 33, 35],
+    'gamma': [0, 0.0005, 0.001, 0.005, 0.01],
+    'kernel': ['rbf', 'poly'] #
 }
 
 # 创建网格搜索对象
@@ -107,7 +107,7 @@ df_test['text'] = df_test['text'].fillna('')
 df_test['subreddit'] = df_test['subreddit'].replace(['assistance', 'relationships', 'homeless', 'almosthomeless'], 'no problem')
 # df_test['subreddit'] = df_test['subreddit'].replace(['anxiety', 'stress', 'ptsd'], 'have problem')
 df_test['subreddit'] = df_test['subreddit'].replace(['domesticviolence', 'survivorsofabuse'], 'may problem')
-
+df_test = df_test[df_test['subreddit'] != 'food_pantry']
 # # 删除'may problem'类的所有样本
 # df_test = df_test[df_test['subreddit'] != 'may problem']
 

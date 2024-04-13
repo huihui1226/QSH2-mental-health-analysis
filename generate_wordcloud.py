@@ -16,10 +16,10 @@ df = pd.read_csv('dreaddit-train.csv')
 stop_words = set(stopwords.words('english'))
 
 # 确保df.text中的所有项都是字符串类型，并处理NaN值
-df['subreddit'] = df['subreddit'].fillna('').apply(str)
+df['text'] = df['text'].fillna('').apply(str)
 
 # 提取'text'列的文本，并进行分词
-words = word_tokenize(" ".join(review for review in df.subreddit))
+words = word_tokenize(" ".join(review for review in df.text))
 
 # 移除停用词和非字母字符
 filtered_words = [word for word in words if word.isalpha() and word not in stop_words]

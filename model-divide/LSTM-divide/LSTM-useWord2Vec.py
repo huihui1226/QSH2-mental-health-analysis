@@ -20,8 +20,7 @@ from keras.layers import Dropout
 from keras.callbacks import EarlyStopping
 from scikeras.wrappers import KerasClassifier
 from keras.layers import Bidirectional
-from keras.optimizers import RMSprop
-
+from keras.layers import Conv1D, MaxPooling1D, BatchNormalization
 from keras.callbacks import ModelCheckpoint
 import os
 
@@ -100,36 +99,42 @@ embed_dim = 128
 lstm_out = 196
 
 model = Sequential()
-model.add(Embedding(vocab_size, vector_size, weights=[embedding_matrix], input_length=X_train.shape[1], trainable=True)) #trainable改为true会在训练中更新词向量
-model.add(SpatialDropout1D(0.4))
-model.add(LSTM(lstm_out, dropout=0.2, recurrent_dropout=0.2))
-model.add(Dense(6,activation='softmax'))
-model.compile(loss = 'categorical_crossentropy', optimizer='adam',metrics = ['accuracy'])
-
-# 训练模型
-batch_size = 32
-model.fit(X_train, pd.get_dummies(df_train['subreddit']).values, epochs = 7, batch_size=batch_size, verbose = 2)
-
+model.add(Embedding(vocab_size, vector_size, weights=[embedding_matrix], input_length=X_train.shape[1], trainable=False)) #trainable改为true会在训练中更新词向量
+# model.add(SpatialDropout1D(0.4))
+# model.add(LSTM(lstm_out, dropout=0.2, recurrent_dropout=0.2))
+# model.add(Dense(6,activation='softmax'))
+# model.compile(loss = 'categorical_crossentropy', optimizer='adam',metrics = ['accuracy'])
+#
+# # 训练模型
+# batch_size = 32
+# model.fit(X_train, pd.get_dummies(df_train['subreddit']).values, epochs = 20, batch_size=batch_size, verbose = 2)
+print(f"Shape of X_train: {X_train.shape}")
 
 batch_size = 32 # 定义batch_size
-#
-# model = Sequential()
-# model.add(Embedding(vocab_size, vector_size, weights=[embedding_matrix], input_length=X_train.shape[1], trainable=True)) #trainable改为true会在训练中更新词向量
-# model.add(SpatialDropout1D(0.85)) # 增加Dropout比例
-# # model.add(LSTM(lstm_out, dropout=0.2, recurrent_dropout=0.2, return_sequences=True)) # 添加return_sequences=True以便在下一层使用序列输出
-# # model.add(LSTM(lstm_out, dropout=0.2, recurrent_dropout=0.2, return_sequences=True)) # 添加return_sequences=True以便在下一层使用序列输出
-# model.add(LSTM(lstm_out, dropout=0.2, recurrent_dropout=0.2)) # 添加第二个LSTM层
-# model.add(Dropout(0.5)) # 添加Dropout层
-# model.add(Dense(50, activation='relu')) # 添加Dense层
-# model.add(Dense(6,activation='softmax'))
-# model.compile(loss = 'categorical_crossentropy', optimizer='adam',metrics = ['accuracy']) # RMSprop(learning_rate=0.0005)
-#
-# # 创建一个只保存最好模型的检查点
-# checkpoint = ModelCheckpoint('best_w2v-model.h5', monitor='val_accuracy', verbose=1, save_best_only=True, mode='max')
-#
-# # 添加早停
-# early_stop = EarlyStopping(monitor='val_loss', patience=5)
-# model.fit(X_train, pd.get_dummies(df_train['subreddit']).values, epochs = 14, batch_size=batch_size, verbose = 2, callbacks=[early_stop, checkpoint], validation_split=0.2) # 添加validation_split参数
+
+#model.add(Embedding(max_fatures, embed_dim,input_length = X_train.shape[1])) #use word2Vec
+model.add(Conv1D(128, 5, activation='relu')) # 添加CNN层
+model.add(MaxPooling1D(pool_size=4)) # 添加池化层
+model.add(Dropout(0.3)) # 添加Dropout层
+model.add(BatchNormalization()) # 添加BatchNormalization层
+model.add(Bidirectional(LSTM(lstm_out,return_sequences=True))) # 添加return_sequences=True以便在下一层使用序列输出   , kernel_regularizer=regularizers.l1(0.01)
+#model.add(BatchNormalization()) # 添加BatchNormalization层
+model.add(Bidirectional(LSTM(lstm_out,return_sequences=True))) # 添加return_sequences=True以便在下一层使用序列输出   , kernel_regularizer=regularizers.l1(0.01)
+#model.add(Dropout(0.5)) # 添加Dropout层
+model.add(LSTM(lstm_out)) # 添加第二个LSTM层
+#model.add(GRU(lstm_out)) # 使用GRU替换LSTM
+model.add(Dense(50, activation='relu')) # 添加Dense层  , kernel_regularizer=regularizers.l1(0.1))
+model.add(Dropout(0.3))
+model.add(BatchNormalization()) # 添加BatchNormalization层
+model.add(Dense(6,activation='softmax'))
+model.compile(loss = 'categorical_crossentropy', optimizer='adam', metrics = ['accuracy']) #    RMSprop(learning_rate=0.0005)
+
+# 创建一个只保存最好模型的检查点
+checkpoint = ModelCheckpoint('best3_model.h5', monitor='val_accuracy', verbose=1, save_best_only=True, mode='max')
+
+# 添加早停
+early_stop = EarlyStopping(monitor='val_loss', patience=5)
+model.fit(X_train, pd.get_dummies(df_train['subreddit']).values, epochs = 10, batch_size=batch_size, verbose = 2, callbacks=[checkpoint, early_stop], validation_split=0.1) # 添加validation_split参数 early_stop,
 
 
 # 读取测试数据集

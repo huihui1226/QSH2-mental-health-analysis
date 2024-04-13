@@ -21,6 +21,7 @@ import pandas as pd
 
 from keras.layers import Conv1D, MaxPooling1D, BatchNormalization
 from keras import regularizers
+from sklearn.metrics import classification_report
 
 # 创建词干提取对象
 stemmer = PorterStemmer()
@@ -56,7 +57,7 @@ def preprocess_text(text):
     return ' '.join(words)
 
 # 读取训练数据集
-df_train = pd.read_csv('dreaddit-train.csv')
+df_train = pd.read_csv('../dreaddit-train.csv')
 
 # 填充缺失值
 df_train['text'] = df_train['text'].fillna('')
@@ -110,11 +111,11 @@ checkpoint = ModelCheckpoint('best3_model.h5', monitor='val_accuracy', verbose=1
 
 # 添加早停
 early_stop = EarlyStopping(monitor='val_accuracy', patience=5)
-model.fit(X_train, pd.get_dummies(df_train['subreddit']).values, epochs = 10, batch_size=batch_size, verbose = 2, callbacks=[checkpoint, early_stop], validation_split=0.1) # 添加validation_split参数 early_stop,
+model.fit(X_train, pd.get_dummies(df_train['subreddit']).values, epochs = 25, batch_size=batch_size, verbose = 2, callbacks=[checkpoint, early_stop], validation_split=0.1) # 添加validation_split参数 early_stop,
 
 
 # 读取测试数据集
-df_test = pd.read_csv('dreaddit-test.csv')
+df_test = pd.read_csv('../dreaddit-test.csv')
 
 # 填充缺失值
 df_test['text'] = df_test['text'].fillna('')
@@ -139,11 +140,20 @@ X_test = pad_sequences(X_test, maxlen=X_train.shape[1])
 # 使用之前训练好的模型进行预测
 predictions_test = model.predict(X_test)
 
-# 如果测试数据集中包含真实的标签，可以计算准确率
-accuracy_test = accuracy_score(pd.get_dummies(df_test['subreddit']).values.argmax(axis=1), predictions_test.argmax(axis=1))
-print(f'测试数据集的模型准确率: {accuracy_test:.3f}')
+# 将预测结果转换为类别标签
+predictions_test_labels = predictions_test.argmax(axis=1)
 
-# 如果准确率大于60%，则保存模型
-if accuracy_test >= 0.59:
-    os.rename('best3_model.h5', f'LSTM-model-3Layer-{accuracy_test:.3f}.h5')
-    # model.save(f'LSTM-model-3Layer-{accuracy_test:.3f}.h5')
+# 如果测试数据集中包含真实的标签，可以计算每个类别的准确率
+true_labels = pd.get_dummies(df_test['subreddit']).values.argmax(axis=1)
+
+# 打印每个类别的分类报告
+print(classification_report(true_labels, predictions_test_labels, target_names=df_test['subreddit'].unique()))
+
+# # 如果测试数据集中包含真实的标签，可以计算准确率
+# accuracy_test = accuracy_score(pd.get_dummies(df_test['subreddit']).values.argmax(axis=1), predictions_test.argmax(axis=1))
+# print(f'测试数据集的模型准确率: {accuracy_test:.3f}')
+#
+# # 如果准确率大于60%，则保存模型
+# if accuracy_test >= 0.59:
+#     os.rename('best3_model.h5', f'LSTM-model-3Layer-{accuracy_test:.3f}.h5')
+#     # model.save(f'LSTM-model-3Layer-{accuracy_test:.3f}.h5')
